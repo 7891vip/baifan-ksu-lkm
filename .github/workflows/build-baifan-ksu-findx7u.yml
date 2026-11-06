@@ -1,0 +1,88 @@
+name: 构建大肥鱼KSU LKM — findx7u (android14-11-o)
+
+# 为 OPPO Find X7 Ultra (PHY110, SM8650, 6.1.118, KMI android14-11-o)
+# 编译大肥鱼KSU 配套 kernelsu.ko（KernelSU v3.3.1）。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出大肥鱼KSU源码
+        uses: actions/checkout@v4
+
+      - name: 安装构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git build-essential bc flex bison libssl-dev libelf-dev \
+            python3 ccache zstd curl unzip
+
+      - name: 克隆欧加 SM8650 6.1.118 内核源码
+        run: |
+          git clone --depth=1 \
+            -b oneplus/sm8650_b_16.0.0_oneplus12 \
+            https://github.com/cctv18/android_kernel_common_oneplus_sm8650 \
+            kernel_src
+
+      - name: 下载 Clang 工具链
+        run: |
+          mkdir -p toolchain/clang20 toolchain/build-tools
+          curl -L -o clang.zip \
+            https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/clang-r547379.zip
+          unzip -q clang.zip -d toolchain/clang20
+          curl -L -o bt.zip \
+            https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/build-tools.zip
+          unzip -q bt.zip -d toolchain/build-tools
+          if [ -d toolchain/clang20/bin ]; then
+            echo "CLANG_BIN=$GITHUB_WORKSPACE/toolchain/clang20/bin" >> "$GITHUB_ENV"
+          else
+            echo "CLANG_BIN=$(dirname "$(find toolchain/clang20 -name clang -type f | head -n1)")" >> "$GITHUB_ENV"
+          fi
+          if [ -d toolchain/build-tools/bin ]; then
+            echo "BT_BIN=$GITHUB_WORKSPACE/toolchain/build-tools/bin" >> "$GITHUB_ENV"
+          else
+            echo "BT_BIN=$(dirname "$(find toolchain/build-tools -name ld.lld -type f | head -n1)")" >> "$GITHUB_ENV"
+          fi
+
+      - name: 配置内核 (gki_defconfig + OPPO KMI)
+        run: |
+          cd kernel_src
+          cat >> arch/arm64/configs/gki_defconfig <<'EOF'
+
+# 大肥鱼KSU 定制：与真机 uname -r = 6.1.118-android14-11-o-... 对齐
+CONFIG_LOCALVERSION="-android14-11-o"
+EOF
+          sed -i 's/check_defconfig//' build.config.gki
+
+      - name: 构建 kernelsu.ko
+        run: |
+          export PATH="$CLANG_BIN:$BT_BIN:$PATH"
+          cd kernel_src
+          make LLVM=1 ARCH=arm64 O=out gki_defconfig
+          make LLVM=1 ARCH=arm64 O=out modules_prepare -j"$(nproc)"
+          make LLVM=1 ARCH=arm64 O=out \
+            M="$GITHUB_WORKSPACE/kernel" \
+            src="$GITHUB_WORKSPACE/kernel" \
+            CONFIG_KSU=m \
+            KSU_GIT_VERSION=2680 \
+            KSU_VERSION=32680 \
+            KSU_EXPECTED_SIZE=0x0339 \
+            KSU_EXPECTED_HASH=bad08be1f8e813067892adca0e70452cd645ba31e5ed15bec35e60fa430f2f48 \
+            KSU_MANAGER_PACKAGE=me.weishu.kernelsu \
+            modules -j"$(nproc)"
+          KO=$(find . -name kernelsu.ko | head -n1)
+          cp "$KO" kernelsu-android14-11-o-baifan.ko
+          "$CLANG_BIN/llvm-strip" -d kernelsu-android14-11-o-baifan.ko || true
+          echo "--- 产物 ---"
+          ls -lh kernelsu-android14-11-o-baifan.ko
+          echo "--- vermagic ---"
+          strings kernelsu-android14-11-o-baifan.ko | grep -E 'vermagic=|android14' | head
+
+      - name: 上传 kernelsu.ko
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernelsu-android14-11-o-baifan
+          path: kernel_src/kernelsu-android14-11-o-baifan.ko
