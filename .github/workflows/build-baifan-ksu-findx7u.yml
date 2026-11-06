@@ -60,6 +60,9 @@ jobs:
           cd kernel_src
           make LLVM=1 ARCH=arm64 O=out gki_defconfig
           make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error modules_prepare -j"$(nproc)"
+          # 生成 SELinux 生成头（flask.h/av_permissions.h），KernelSU 外部模块需要
+          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error \
+            security/selinux/flask.h security/selinux/av_permissions.h -j"$(nproc)"
           make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error \
             M="$GITHUB_WORKSPACE/kernel" \
             src="$GITHUB_WORKSPACE/kernel" \
