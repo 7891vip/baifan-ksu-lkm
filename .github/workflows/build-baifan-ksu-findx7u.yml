@@ -60,6 +60,11 @@ jobs:
           sed -i 's/check_defconfig//' build.config.gki
           # 修复 clang20 对 6.1 内核 vendored libbpf 的 -Werror 兼容性
           find tools -type f -name 'Makefile*' -exec sed -i 's/-Werror//g' {} + 2>/dev/null || true
+          # DDK 同款：禁用 modpost 的 check_exports，允许 KernelSU 引用 GKI 保留符号
+          MODPOST=scripts/mod/modpost.c
+          sed -i -E 's/^([[:space:]]*)check_exports\(mod\);/\1\/\/ check_exports(mod);/' "$MODPOST"
+          sed -i -E 's/^([[:space:]]*)s->module = exp->module;/\1\/\/ s->module = exp->module;/' "$MODPOST"
+          sed -i 's/^static void check_exports(/static void __attribute__((unused)) check_exports(/' "$MODPOST"
 
       - name: Build kernelsu.ko
         run: |
