@@ -51,14 +51,16 @@ jobs:
           cd kernel_src
           printf '\nCONFIG_LOCALVERSION="-android14-11-o"\n' >> arch/arm64/configs/gki_defconfig
           sed -i 's/check_defconfig//' build.config.gki
+          # 修复 clang20 对 6.1 内核 vendored libbpf 的 -Werror 兼容性问题
+          grep -rl -- '-Werror' tools/bpf/resolve_btfids 2>/dev/null | while read f; do sed -i 's/-Werror//g' "$f"; done
 
       - name: Build kernelsu.ko
         run: |
           export PATH="$CLANG_BIN:$BT_BIN:$PATH"
           cd kernel_src
           make LLVM=1 ARCH=arm64 O=out gki_defconfig
-          make LLVM=1 ARCH=arm64 O=out modules_prepare -j"$(nproc)"
-          make LLVM=1 ARCH=arm64 O=out \
+          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error modules_prepare -j"$(nproc)"
+          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error \
             M="$GITHUB_WORKSPACE/kernel" \
             src="$GITHUB_WORKSPACE/kernel" \
             CONFIG_KSU=m \
