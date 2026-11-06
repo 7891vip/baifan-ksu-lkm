@@ -49,10 +49,7 @@ jobs:
       - name: Configure kernel (gki_defconfig + OPPO KMI)
         run: |
           cd kernel_src
-          cat >> arch/arm64/configs/gki_defconfig <<'EOF'
-
-CONFIG_LOCALVERSION="-android14-11-o"
-EOF
+          printf '\nCONFIG_LOCALVERSION="-android14-11-o"\n' >> arch/arm64/configs/gki_defconfig
           sed -i 's/check_defconfig//' build.config.gki
 
       - name: Build kernelsu.ko
