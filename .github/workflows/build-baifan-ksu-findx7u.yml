@@ -1,7 +1,6 @@
-name: 构建大肥鱼KSU LKM — findx7u (android14-11-o)
+name: Build Baifan KSU LKM findx7u android14-11-o
 
-# 为 OPPO Find X7 Ultra (PHY110, SM8650, 6.1.118, KMI android14-11-o)
-# 编译大肥鱼KSU 配套 kernelsu.ko（KernelSU v3.3.1）。
+# Build kernelsu.ko for OPPO Find X7 Ultra (PHY110, SM8650, 6.1.118, KMI android14-11-o).
 
 on:
   workflow_dispatch:
@@ -10,24 +9,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出大肥鱼KSU源码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 安装构建依赖
+      - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             git build-essential bc flex bison libssl-dev libelf-dev \
             python3 ccache zstd curl unzip
 
-      - name: 克隆欧加 SM8650 6.1.118 内核源码
+      - name: Clone OPLUS SM8650 6.1.118 kernel source
         run: |
           git clone --depth=1 \
             -b oneplus/sm8650_b_16.0.0_oneplus12 \
             https://github.com/cctv18/android_kernel_common_oneplus_sm8650 \
             kernel_src
 
-      - name: 下载 Clang 工具链
+      - name: Download Clang toolchain
         run: |
           mkdir -p toolchain/clang20 toolchain/build-tools
           curl -L -o clang.zip \
@@ -47,17 +46,16 @@ jobs:
             echo "BT_BIN=$(dirname "$(find toolchain/build-tools -name ld.lld -type f | head -n1)")" >> "$GITHUB_ENV"
           fi
 
-      - name: 配置内核 (gki_defconfig + OPPO KMI)
+      - name: Configure kernel (gki_defconfig + OPPO KMI)
         run: |
           cd kernel_src
           cat >> arch/arm64/configs/gki_defconfig <<'EOF'
 
-# 大肥鱼KSU 定制：与真机 uname -r = 6.1.118-android14-11-o-... 对齐
 CONFIG_LOCALVERSION="-android14-11-o"
 EOF
           sed -i 's/check_defconfig//' build.config.gki
 
-      - name: 构建 kernelsu.ko
+      - name: Build kernelsu.ko
         run: |
           export PATH="$CLANG_BIN:$BT_BIN:$PATH"
           cd kernel_src
@@ -76,12 +74,11 @@ EOF
           KO=$(find . -name kernelsu.ko | head -n1)
           cp "$KO" kernelsu-android14-11-o-baifan.ko
           "$CLANG_BIN/llvm-strip" -d kernelsu-android14-11-o-baifan.ko || true
-          echo "--- 产物 ---"
+          echo "--- artifact ---"
           ls -lh kernelsu-android14-11-o-baifan.ko
-          echo "--- vermagic ---"
           strings kernelsu-android14-11-o-baifan.ko | grep -E 'vermagic=|android14' | head
 
-      - name: 上传 kernelsu.ko
+      - name: Upload kernelsu.ko
         uses: actions/upload-artifact@v4
         with:
           name: kernelsu-android14-11-o-baifan
