@@ -52,7 +52,7 @@ jobs:
           printf '\nCONFIG_LOCALVERSION="-android14-11-o"\n' >> arch/arm64/configs/gki_defconfig
           sed -i 's/check_defconfig//' build.config.gki
           # 修复 clang20 对 6.1 内核 vendored libbpf 的 -Werror 兼容性问题
-          grep -rl -- '-Werror' tools/bpf/resolve_btfids 2>/dev/null | while read f; do sed -i 's/-Werror//g' "$f"; done
+          find tools -type f -name 'Makefile*' -exec sed -i 's/-Werror//g' {} + 2>/dev/null || true
 
       - name: Build kernelsu.ko
         run: |
