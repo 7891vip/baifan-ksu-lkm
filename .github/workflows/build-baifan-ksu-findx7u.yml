@@ -47,6 +47,8 @@ jobs:
       - name: Configure kernel (integrate KernelSU as module)
         run: |
           cd kernel_src
+          # 去除 GKI ABI 保护，使 KernelSU 需要的符号（path_umount/init_mm 等）对模块可见
+          rm -f android/abi_gki_protected_exports_* || true
           # 集成大肥鱼KSU的 kernel/ 源码为内核树内的模块
           ln -sf "$(realpath --relative-to=drivers "$GITHUB_WORKSPACE/kernel")" drivers/kernelsu
           grep -q "kernelsu" drivers/Makefile || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> drivers/Makefile
