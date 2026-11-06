@@ -59,9 +59,8 @@ jobs:
           export PATH="$CLANG_BIN:$BT_BIN:$PATH"
           cd kernel_src
           make LLVM=1 ARCH=arm64 O=out gki_defconfig
-          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error modules_prepare -j"$(nproc)"
-          # 构建 SELinux 子目录以生成 flask.h/av_permissions.h 等生成头
-          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error security/selinux/ -j"$(nproc)"
+          # 完整构建 vmlinux：生成 Module.symvers 符号表 + 全部生成头（flask.h 等）
+          make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error vmlinux -j"$(nproc)"
           make LLVM=1 ARCH=arm64 O=out KCFLAGS=-Wno-error \
             M="$GITHUB_WORKSPACE/kernel" \
             src="$GITHUB_WORKSPACE/kernel" \
